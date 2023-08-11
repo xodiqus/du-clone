@@ -17,15 +17,22 @@ enum class Unit {
 };
 
 using Callback_t = std::function<void(std::filesystem::path const&, uintmax_t)>;
+using ErrorHandler_t = std::function<void(std::error_code const&)>;
 
-uintmax_t get_total_size(std::filesystem::path const& path, Unit unit, Callback_t callback) {
+uintmax_t get_total_size(std::filesystem::path const& path, Unit unit, Callback_t callback, ErrorHandler_t error_handler) {
     using namespace std::filesystem;
 
     uintmax_t total = 0;
+    std::error_code errc;
 
-    for (auto const& entry: directory_iterator(path)) {
+    for (auto const& entry: directory_iterator(path, errc)) {
+        if (errc) {
+            error_handler(errc);
+            continue;
+        }
+
         if (entry.is_directory()) {
-            auto size = get_total_size(entry, unit, callback);
+            auto size = get_total_size(entry, unit, callback, error_handler);
 
             if (size == 0 && unit == Unit::Blocks) {
                 size = 1;
@@ -40,12 +47,17 @@ uintmax_t get_total_size(std::filesystem::path const& path, Unit unit, Callback_
                 throw std::runtime_error("Can't use the unit!");
 
             case Unit::Bytes:
-                size += entry.file_size();
+                size += entry.file_size(errc);
                 break;
 
             case Unit::Blocks:
-                size += std::ceil(entry.file_size() / 512.0L);
+                size += std::ceil(entry.file_size(errc) / 512.0L);
                 break;
+            }
+
+            if (errc) {
+                error_handler(errc);
+                continue;
             }
 
             callback(entry, size);
@@ -119,8 +131,12 @@ int main(int argc, char** argv)
         }
     };
 
+    constexpr auto error_handler = [](auto const& error_code) {
+        std::cerr << error_code.message() << '\n';
+    };
+
     for (auto const& path : paths) {
-        const auto size = get_total_size(path, unit, callback);
+        const auto size = get_total_size(path, unit, callback, error_handler);
         summary += size;
 
         if (!need_print_only_summary) {
