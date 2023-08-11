@@ -22,36 +22,35 @@ uintmax_t get_total_size(std::filesystem::path const& path, Unit unit, Callback_
     using namespace std::filesystem;
 
     uintmax_t total = 0;
-    std::queue<directory_entry> paths;
-    paths.push(directory_entry(path));
 
-    while (!paths.empty()) {
-        auto path = paths.front();
-        paths.pop();
+    for (auto const& entry: directory_iterator(path)) {
+        if (entry.is_directory()) {
+            auto size = get_total_size(entry, unit, callback);
 
-        for (auto const& entry: directory_iterator(path)) {
-            if (entry.is_regular_file()) {
-                uintmax_t size = 0;
-
-                switch (unit) {
-                default:
-                    throw std::runtime_error("Can't use the unit!");
-
-                case Unit::Bytes:
-                    size += entry.file_size();
-                    break;
-
-                case Unit::Blocks:
-                    size += std::ceil(entry.file_size() / 512.0L);
-                    break;
-                }
-
-                callback(entry.path().filename(), size);
-
-                total += size;
-            } else {
-                paths.push(entry);
+            if (size == 0 && unit == Unit::Blocks) {
+                size = 1;
             }
+
+            callback(entry, size);
+        } else {
+            uintmax_t size = 0;
+
+            switch (unit) {
+            default:
+                throw std::runtime_error("Can't use the unit!");
+
+            case Unit::Bytes:
+                size += entry.file_size();
+                break;
+
+            case Unit::Blocks:
+                size += std::ceil(entry.file_size() / 512.0L);
+                break;
+            }
+
+            callback(entry, size);
+
+            total += size;
         }
     }
 
