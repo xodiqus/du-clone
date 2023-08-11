@@ -6,74 +6,7 @@
 
 #include <boost/program_options.hpp>
 
-#include <filesystem>
-#include <queue>
-#include <functional>
-#include <string_view>
-#include <sstream>
-
-enum class Unit {
-    Bytes, Blocks
-};
-
-using Callback_t = std::function<void(std::filesystem::path const&, uintmax_t)>;
-using ErrorHandler_t = std::function<void(std::error_code const&)>;
-
-uintmax_t get_total_size(std::filesystem::path const& path, Unit unit, Callback_t callback, ErrorHandler_t error_handler) {
-    using namespace std::filesystem;
-
-    uintmax_t total = 0;
-    std::error_code errc;
-
-    for (auto const& entry: directory_iterator(path, errc)) {
-        if (errc) {
-            error_handler(errc);
-            continue;
-        }
-
-        if (entry.is_directory()) {
-            auto size = get_total_size(entry, unit, callback, error_handler);
-
-            if (size == 0 && unit == Unit::Blocks) {
-                size = 1;
-            }
-
-            callback(entry, size);
-        } else {
-            uintmax_t size = 0;
-
-            switch (unit) {
-            default:
-                throw std::runtime_error("Can't use the unit!");
-
-            case Unit::Bytes:
-                size += entry.file_size(errc);
-                break;
-
-            case Unit::Blocks:
-                size += std::ceil(entry.file_size(errc) / 512.0L);
-                break;
-            }
-
-            if (errc) {
-                error_handler(errc);
-                continue;
-            }
-
-            callback(entry, size);
-
-            total += size;
-        }
-    }
-
-    return total;
-}
-
-std::string format(std::filesystem::path const& path, uintmax_t size) {
-    std::stringstream ss;
-    ss << size << '\t' << path << '\n';
-    return ss.str();
-}
+#include "du.hpp"
 
 int main(int argc, char** argv)
 {
@@ -107,6 +40,10 @@ int main(int argc, char** argv)
         return EXIT_SUCCESS;
     }
 
+    using du::Unit;
+    using du::get_total_size;
+    using du::format;
+
     const auto unit = vm.count("bytes") ? Unit::Bytes : Unit::Blocks;
     const auto need_print_all_files = vm.count("all-files-data");
     const auto need_print_only_summary = vm.count("summary-only");
@@ -131,7 +68,7 @@ int main(int argc, char** argv)
         }
     };
 
-    constexpr auto error_handler = [](auto const& error_code) {
+    constexpr auto error_handler = [](auto error_code) {
         std::cerr << error_code.message() << '\n';
     };
 
