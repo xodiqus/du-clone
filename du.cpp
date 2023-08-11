@@ -17,27 +17,22 @@ uintmax_t get_total_size(const std::filesystem::path &path, Unit unit, Callback_
             continue;
         }
 
+        uintmax_t size = 0;
+
         if (entry.is_directory()) {
-            auto size = get_total_size(entry, unit, callback, error_handler);
-
-            if (size == 0 && unit == Unit::Blocks) {
-                size = 1;
-            }
-
-            callback(entry, size);
+            size = get_total_size(entry, unit, callback, error_handler);
         } else {
-            uintmax_t size = 0;
 
             switch (unit) {
             default:
                 throw std::runtime_error("Can't use the unit!");
 
             case Unit::Bytes:
-                size += entry.file_size(errc);
+                size = entry.file_size(errc);
                 break;
 
             case Unit::Blocks:
-                size += std::ceil(entry.file_size(errc) / 512.0L);
+                size = std::ceil(entry.file_size(errc) / 512.0L);
                 break;
             }
 
@@ -46,10 +41,14 @@ uintmax_t get_total_size(const std::filesystem::path &path, Unit unit, Callback_
                 continue;
             }
 
-            callback(entry, size);
-
-            total += size;
         }
+
+        callback(entry, size);
+        total += size;
+    }
+
+    if (total == 0 && unit == Unit::Blocks) {
+        total = 1;
     }
 
     return total;
