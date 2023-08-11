@@ -1,6 +1,8 @@
 #include <iostream>
 #include <vector>
+#include <deque>
 #include <string>
+#include <fstream>
 
 #include <boost/program_options.hpp>
 
@@ -73,7 +75,7 @@ int main(int argc, char** argv)
         ("all-files-data,a", "data of all files")
         ("summary,c", "print summary of total size at the ent")
         ("summary-only,s", "print only summary of total size")
-        ("files-from", "list of paths")
+        ("from-file", value<std::string>(), "read list of paths")
         ("input-paths", value<std::vector<std::string>>(), "")
     ;
 
@@ -94,33 +96,41 @@ int main(int argc, char** argv)
         return EXIT_SUCCESS;
     }
 
+    const auto unit = vm.count("bytes") ? Unit::Bytes : Unit::Blocks;
+    const auto need_print_all_files = vm.count("all-files-data");
+    const auto need_print_only_summary = vm.count("summary-only");
+
     uintmax_t summary = 0;
+    std::vector<std::string> paths;
 
     if (vm.count("input-paths")) {
-        const auto paths = vm["input-paths"].as<std::vector<std::string>>();
+        paths = vm["input-paths"].as<decltype(paths)>();
+    } else if (vm.count("from-file")) {
+        std::ifstream s {vm["from-file"].as<std::string>()};
+        std::string line = "";
 
-        const auto unit = vm.count("bytes") ? Unit::Bytes : Unit::Blocks;
-        const auto need_print_all_files = vm.count("all-files-data");
-        const auto need_print_only_summary = vm.count("summary-only");
-
-        const auto callback = [=] (auto const& path, uintmax_t size) {
-            if (need_print_all_files && !need_print_only_summary) {
-                std::cout << format(path, size);
-            }
-        };
-
-        for (auto const& path : paths) {
-            const auto size = get_total_size(path, unit, callback);
-            summary += size;
-
-            if (!need_print_only_summary) {
-                std::cout << format(path, size);
-            }
+        while (std::getline(s, line)) {
+            paths.push_back(line);
         }
+    }
 
-        if (vm.count("summary") || need_print_only_summary) {
-            std::cout << "\nSummary: " << summary << '\n';
+    const auto callback = [=] (auto const& path, uintmax_t size) {
+        if (need_print_all_files && !need_print_only_summary) {
+            std::cout << format(path, size);
         }
+    };
+
+    for (auto const& path : paths) {
+        const auto size = get_total_size(path, unit, callback);
+        summary += size;
+
+        if (!need_print_only_summary) {
+            std::cout << format(path, size);
+        }
+    }
+
+    if (vm.count("summary") || need_print_only_summary) {
+        std::cout << "\nSummary: " << summary << '\n';
     }
 
     return EXIT_SUCCESS;
