@@ -19,7 +19,7 @@ int main(int argc, char** argv)
         ("summary,c", "print summary of total size at the ent")
         ("summary-only,s", "print only summary of total size")
         ("from-file", value<std::string>(), "read list of paths")
-        ("input-paths", value<std::vector<std::string>>(), "")
+        ("input-paths", value<std::vector<std::string>>(), "input ones, a size of which gets to calc")
     ;
 
     positional_options_description p;
