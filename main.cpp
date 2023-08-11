@@ -100,9 +100,11 @@ int main(int argc, char** argv)
         const auto paths = vm["input-paths"].as<std::vector<std::string>>();
 
         const auto unit = vm.count("bytes") ? Unit::Bytes : Unit::Blocks;
-        const auto need_print = vm.count("all-files-data");
-        const auto callback = [need_print] (auto const& path, uintmax_t size) {
-            if (need_print) {
+        const auto need_print_all_files = vm.count("all-files-data");
+        const auto need_print_only_summary = vm.count("summary-only");
+
+        const auto callback = [=] (auto const& path, uintmax_t size) {
+            if (need_print_all_files && !need_print_only_summary) {
                 std::cout << format(path, size);
             }
         };
@@ -111,11 +113,13 @@ int main(int argc, char** argv)
             const auto size = get_total_size(path, unit, callback);
             summary += size;
 
-            std::cout << format(path, size);
+            if (!need_print_only_summary) {
+                std::cout << format(path, size);
+            }
         }
 
-        if (vm.count("summary")) {
-            std::cout << "Summary: " << summary << '\n';
+        if (vm.count("summary") || need_print_only_summary) {
+            std::cout << "\nSummary: " << summary << '\n';
         }
     }
 
