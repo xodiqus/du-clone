@@ -5,7 +5,7 @@
 
 namespace du {
 
-uintmax_t get_total_size(const std::filesystem::__cxx11::path &path, Unit unit, Callback_t callback, ErrorHandler_t error_handler) {
+uintmax_t get_total_size(const std::filesystem::path &path, Unit unit, Callback_t callback, ErrorHandler_t error_handler) {
     using namespace std::filesystem;
 
     uintmax_t total = 0;

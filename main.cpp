@@ -1,6 +1,5 @@
 #include <iostream>
 #include <vector>
-#include <deque>
 #include <string>
 #include <fstream>
 
@@ -40,15 +39,9 @@ int main(int argc, char** argv)
         return EXIT_SUCCESS;
     }
 
-    using du::Unit;
-    using du::get_total_size;
-    using du::format;
-
-    const auto unit = vm.count("bytes") ? Unit::Bytes : Unit::Blocks;
     const auto need_print_all_files = vm.count("all-files-data");
     const auto need_print_only_summary = vm.count("summary-only");
 
-    uintmax_t summary = 0;
     std::vector<std::string> paths;
 
     if (vm.count("input-paths")) {
@@ -62,6 +55,10 @@ int main(int argc, char** argv)
         }
     }
 
+    using du::Unit;
+    using du::get_total_size;
+    using du::format;
+
     const auto callback = [=] (auto const& path, uintmax_t size) {
         if (need_print_all_files && !need_print_only_summary) {
             std::cout << format(path, size);
@@ -71,6 +68,9 @@ int main(int argc, char** argv)
     constexpr auto error_handler = [](auto error_code) {
         std::cerr << error_code.message() << '\n';
     };
+
+    const auto unit = vm.count("bytes") ? Unit::Bytes : Unit::Blocks;
+    uintmax_t summary = 0;
 
     for (auto const& path : paths) {
         const auto size = get_total_size(path, unit, callback, error_handler);
