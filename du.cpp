@@ -20,8 +20,6 @@ uintmax_t get_total_size(const std::filesystem::path &path, Unit unit, Callback_
             continue;
         }
 
-        uintmax_t size = 0;
-
         if (entry.is_directory()) {
             auto f = std::async(std::launch::async, [=] {
                 const auto size = get_total_size(entry, unit, callback, error_handler);
@@ -33,6 +31,8 @@ uintmax_t get_total_size(const std::filesystem::path &path, Unit unit, Callback_
             async_results.push_front(std::move(f));
 
         } else {
+
+            uintmax_t size = 0;
 
             switch (unit) {
             default:
