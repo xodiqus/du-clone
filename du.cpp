@@ -14,13 +14,20 @@ uintmax_t get_total_size(const std::filesystem::path &path, Unit unit, Callback_
     std::error_code errc;
     std::forward_list<std::future<uintmax_t>> async_results;
 
-    for (auto const& entry: directory_iterator(path, errc)) {
-        if (errc) {
-            error_handler(errc);
-            continue;
-        }
+    directory_iterator directory(path, errc);
 
-        if (entry.is_directory()) {
+    if (errc) {
+        error_handler(errc);
+        return 0;
+    }
+
+    for (auto const& entry: directory) {
+        if (entry.is_directory(errc)) {
+            if (errc) {
+                error_handler(errc);
+                continue;
+            }
+
             auto f = std::async(std::launch::async, [=] {
                 const auto size = get_total_size(entry, unit, callback, error_handler);
                 callback(entry, size);
