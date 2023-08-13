@@ -2,6 +2,8 @@
 
 #include <sstream>
 #include <cmath>
+#include <forward_list>
+#include <future>
 
 namespace du {
 
@@ -10,6 +12,7 @@ uintmax_t get_total_size(const std::filesystem::path &path, Unit unit, Callback_
 
     uintmax_t total = 0;
     std::error_code errc;
+    std::forward_list<std::future<uintmax_t>> async_results;
 
     for (auto const& entry: directory_iterator(path, errc)) {
         if (errc) {
@@ -20,7 +23,15 @@ uintmax_t get_total_size(const std::filesystem::path &path, Unit unit, Callback_
         uintmax_t size = 0;
 
         if (entry.is_directory()) {
-            size = get_total_size(entry, unit, callback, error_handler);
+            auto f = std::async(std::launch::async, [=] {
+                const auto size = get_total_size(entry, unit, callback, error_handler);
+                callback(entry, size);
+
+                return size;
+            });
+
+            async_results.push_front(std::move(f));
+
         } else {
 
             switch (unit) {
@@ -41,10 +52,13 @@ uintmax_t get_total_size(const std::filesystem::path &path, Unit unit, Callback_
                 continue;
             }
 
+            callback(entry, size);
+            total += size;
         }
+    }
 
-        callback(entry, size);
-        total += size;
+    for (auto& f: async_results) {
+        total += f.get();
     }
 
     if (total == 0 && unit == Unit::Blocks) {
