@@ -70,7 +70,7 @@ uintmax_t get_total_size(const std::filesystem::path &path, Unit unit, Callback_
 
 std::string format(const std::filesystem::path &path, uintmax_t size) {
     std::stringstream ss;
-    ss << size << '\t' << path << '\n';
+    ss << size << '\t' << path.native() << '\n';
     return ss.str();
 }
 
