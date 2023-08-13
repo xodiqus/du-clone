@@ -2,6 +2,9 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include <thread>
+#include <atomic>
+#include <forward_list>
 
 #include <boost/program_options.hpp>
 
@@ -70,15 +73,29 @@ int main(int argc, char** argv)
     };
 
     const auto unit = vm.count("bytes") ? Unit::Bytes : Unit::Blocks;
-    uintmax_t summary = 0;
+    std::atomic<uintmax_t> summary = 0;
+    std::forward_list<std::thread> threads;
+    const auto thread_count = std::thread::hardware_concurrency();
 
-    for (auto const& path : paths) {
-        const auto size = get_total_size(path, unit, callback, error_handler);
-        summary += size;
+    for (size_t i = 0; i < thread_count; ++i)
+    {
+        auto t = [=, &summary, &paths] {
+            for (size_t j = i; j < paths.size(); j += thread_count) {
+                const auto& path = paths[j];
+                const auto size = get_total_size(path, unit, callback, error_handler);
+                summary += size;
 
-        if (!need_print_only_summary) {
-            std::cout << format(path, size);
-        }
+                if (!need_print_only_summary) {
+                    std::cout << format(path, size);
+                }
+            }
+        };
+
+        threads.push_front(std::thread {std::move(t)} );
+    }
+
+    for (auto& t: threads) {
+        t.join();
     }
 
     if (vm.count("summary") || need_print_only_summary) {
