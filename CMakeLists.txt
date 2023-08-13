@@ -4,7 +4,7 @@ project(du-clone LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-find_package (Boost COMPONENTS program_options REQUIRED)
+find_package (Boost COMPONENTS program_options thread REQUIRED)
 
 add_executable(du-clone main.cpp du.hpp du.cpp)
 

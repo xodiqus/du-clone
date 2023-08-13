@@ -2,11 +2,10 @@
 #include <vector>
 #include <string>
 #include <fstream>
-#include <thread>
 #include <atomic>
-#include <forward_list>
 
 #include <boost/program_options.hpp>
+#include <boost/thread/thread.hpp>
 
 #include "du.hpp"
 
@@ -74,8 +73,8 @@ int main(int argc, char** argv)
 
     const auto unit = vm.count("bytes") ? Unit::Bytes : Unit::Blocks;
     std::atomic<uintmax_t> summary = 0;
-    std::forward_list<std::thread> threads;
-    const auto thread_count = std::thread::hardware_concurrency();
+    boost::thread_group threads;
+    const auto thread_count = boost::thread::hardware_concurrency();
 
     for (size_t i = 0; i < thread_count; ++i)
     {
@@ -91,12 +90,10 @@ int main(int argc, char** argv)
             }
         };
 
-        threads.push_front(std::thread {std::move(t)} );
+        threads.create_thread(std::move(t));
     }
 
-    for (auto& t: threads) {
-        t.join();
-    }
+    threads.join_all();
 
     if (vm.count("summary") || need_print_only_summary) {
         std::cout << "\nSummary: " << summary << '\n';
